@@ -26,3 +26,6 @@ python/.venv/
 data/
 results/**/*.pt
 results/*.pt
+
+# Training outputs (logs, checkpoints, figures)
+results/

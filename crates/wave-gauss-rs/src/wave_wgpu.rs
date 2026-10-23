@@ -108,7 +108,6 @@ pub struct NativeWaveEngine {
     pub vmax: f32,
     pub sources: Vec<[f32; 2]>,
     pub wavelet: Vec<f32>,
-    statics_tail: Vec<f32>,
     params_forward_buf: wgpu::Buffer,
     params_adjoint_buf: wgpu::Buffer,
     steps_buf: wgpu::Buffer,
@@ -679,7 +678,6 @@ impl NativeWaveEngine {
             vmax,
             sources,
             wavelet,
-            statics_tail,
             params_forward_buf,
             params_adjoint_buf,
             steps_buf,
@@ -784,6 +782,16 @@ impl NativeWaveEngine {
         self.queue
             .write_buffer(&self.geometry_buf, 0, bytemuck::cast_slice(&src_words));
         self.sources = sources.to_vec();
+    }
+
+    /// Replace the source wavelet `[nt]` in the GPU statics buffer.
+    pub fn set_wavelet(&mut self, wavelet: &[f32]) {
+        assert_eq!(wavelet.len(), self.nt);
+        let cells = self.nx * self.nz;
+        let offset = ((cells + 3 * (self.nx + self.nz)) * 4) as u64;
+        self.queue
+            .write_buffer(&self.statics_buf, offset, bytemuck::cast_slice(wavelet));
+        self.wavelet = wavelet.to_vec();
     }
 
     /// Simulate all shots in parallel on GPU for a 70x70 velocity model in m/s.

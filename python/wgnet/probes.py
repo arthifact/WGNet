@@ -1,7 +1,4 @@
-"""Diagnostic Wave-Information Attribution & Counterfactual Probe Suite (`probes.py`).
-
-Tests and quantifies which physical wave attributes a trained wave-to-geology network
-actually exploits:
+"""Counterfactual wave-attribution probes: which physical attributes of the gathers a trained model uses.
 1. Late-Reflection Mute (tests whether deep geology uses weak late reflections).
 2. Direct-Wave Mute (tests whether the model can invert purely from scattered reflections).
 3. Far-Offset Aperture Mask (tests whether distant receiver interactions are exploited).
@@ -15,7 +12,7 @@ import numpy as np
 import torch
 
 from .data import DT, H, N, NT, SHOTS
-from .renderer import compute_metrics_mps
+from .render import field_metrics
 
 
 def _direct_wave_mask(
@@ -120,7 +117,7 @@ class WaveAttributionSuite:
 
         for name, mod_traces in conditions.items():
             pred = baseline_pred if name == "clean_full_wave" else predict_fn(mod_traces)
-            overall = compute_metrics_mps(pred, target_km)
+            overall = {k: float(v.mean()) for k, v in field_metrics(pred, target_km).items()}
             shallow_rmse = float(
                 torch.sqrt(((pred[:, :35, :] - target_km[:, :35, :]) * 1000.0).square().mean()).item()
             )
@@ -131,8 +128,9 @@ class WaveAttributionSuite:
                 torch.sqrt(((pred - baseline_pred) * 1000.0).square().mean()).item()
             )
             results[name] = {
-                "field_rmse_mps": overall["field_rmse_mps"],
-                "grad_rmse_mps": overall["grad_rmse_mps"],
+                "mae_mps": overall["mae_mps"],
+                "rmse_mps": overall["rmse_mps"],
+                "ssim": overall["ssim"],
                 "shallow_rmse_mps": shallow_rmse,
                 "deep_rmse_mps": deep_rmse,
                 "prediction_shift_mps": shift_from_clean,
